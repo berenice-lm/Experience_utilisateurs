@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="/assets/accueil_style.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consentement</title>
+    <style>
+        body {
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+            background: url('no_label.png') no-repeat center center fixed;
+            background-size: cover;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .centered-rectangle {
+            background: rgba(255,255,255,0.92);
+            border-radius: 18px;
+            box-shadow: 0 0 30px rgba(0,0,0,0.28);
+            max-width: 1400px;
+            width: 90vw;
+            margin: 0 auto;
+            padding: 70px 90px 70px 90px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            min-height: 60vh;
+        }
+        .consent-content {
+            width: 100%;
+            display: flex;
+            flex-direction: row;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 60px;
+        }
+        .consent-text {
+            flex: 1 1 60%;
+            text-align: left;
+            font-size: 1.7em;
+            line-height: 1.6;
+        }
+        .consent-map {
+            flex: 1 1 40%;
+            min-width: 400px;
+            min-height: 400px;
+            height: 480px;
+            max-width: 600px;
+            max-height: 600px;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 0 16px rgba(0,0,0,0.13);
+            margin-left: 30px;
+        }
+        .arrow-prev, .arrow-next {
+            position: fixed;
+            right: 3vw;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            z-index: 100;
+            padding: 0;
+        }
+        .arrow-prev {
+            right: 10vw;
+        }
+        .arrow-next svg, .arrow-prev svg {
+            width: 4vw;
+            height: 4vw;
+            fill: #4da3ff;
+        }
+        @media (max-width: 1200px) {
+            .centered-rectangle {
+                max-width: 98vw;
+                padding: 30px 2vw;
+            }
+            .consent-content {
+                flex-direction: column;
+                gap: 30px;
+            }
+            .consent-map {
+                margin-left: 0;
+                margin-top: 20px;
+                width: 100%;
+                min-width: 200px;
+                min-height: 200px;
+                height: 250px;
+                max-width: 100%;
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v7.3.0/ol.css">
+</head>
+<body>
+    <div class="centered-rectangle">
+        <div class="consent-content">
+            <div class="consent-text" id="consent-text">
+                <div id="consent-page-1">
+                    <span style="color:#e53935;font-weight:bold;">
+                        Merci d’accepter de réaliser cette expérience sur la perception des ruptures dans une carte pan-scalaire.
+                    </span>
+                    <br><br>
+                    <b>Quel est le but de cette expérience ?</b><br><br>
+                    La rupture est un changement perçu comme trop brutal et qui provoque parfois de la <b>désorientation</b>.<br>
+                    L’objectif de cette expérience est d’analyser la perception et l’intensité de ces ruptures en fonction des personnes, afin de mieux comprendre comment concevoir une carte plus <b>progressive</b>.<br><br>
+                </div>
+                <!-- D'autres pages pourront être ajoutées ici, masquées par défaut -->
+            </div>
+            <div class="consent-map" id="consent-map"></div>
+        </div>
+    </div>
+    <button class="arrow-prev" id="arrow-prev" title="Page précédente" style="display:none;">
+        <svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+    </button>
+    <button class="arrow-next" id="arrow-next" title="Page suivante">
+        <svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+    </button>
+    <script src="https://cdn.jsdelivr.net/npm/ol@v7.3.0/dist/ol.js"></script>
+    <script>
+        // Incrémente automatiquement l'identifiant à chaque ouverture de la page consentement,
+        // mais seulement si ce n'est pas déjà fait dans cette session navigateur
+        if (!sessionStorage.getItem('participant_id_incremented')) {
+            let participantId = localStorage.getItem('participant_id_counter');
+            if (!participantId) {
+                participantId = "1";
+            } else {
+                participantId = (parseInt(participantId) + 1).toString();
+            }
+            localStorage.setItem('participant_id_counter', participantId);
+            sessionStorage.setItem('participant_id_incremented', '1');
+        }
+
+        // Affichage de la carte OpenLayers
+        setTimeout(function() {
+            const projectionExtent = ol.proj.get('EPSG:3857').getExtent();
+            const resolutions = [];
+            const matrixIds = [];
+            for (let z = 0; z <= 21; ++z) {
+                resolutions[z] = ol.extent.getWidth(projectionExtent) / (256 * Math.pow(2, z));
+                matrixIds[z] = z;
+            }
+            const tileDimension = 256;
+            const map = new ol.Map({
+            target: 'consent-map',
+            layers: [
+                new ol.layer.Tile({
+                    source: new ol.source.WMTS({
+                        url: 'http://lostinzoom.huma-num.fr/geoserver/la_bonne_carte/gwc/service/wmts',
+                        layer: 'la_bonne_carte:LBC_agregation',
+                        matrixSet: 'WebMercatorQuad',
+                        format: 'image/png',
+                        dimensions: [tileDimension, tileDimension],
+                        tileGrid: new ol.tilegrid.WMTS({
+                            origin: ol.extent.getTopLeft(projectionExtent),
+                            resolutions: resolutions,
+                            matrixIds: matrixIds,
+                        }),
+                        wrapX: true,
+                    })
+                })
+            ],
+            view: new ol.View({
+                center: ol.proj.fromLonLat([-0.37, 43.33]),
+                zoom: 10
+            }),
+            controls: []
+        });
+        }, 100);
+
+        // Gestion des pages de consentement (exemple pour plusieurs pages)
+        const pages = [
+            `<div id="consent-page-1">
+                <span style="color:#e53935;font-weight:bold;">
+                    Merci d’accepter de réaliser cette expérience sur la perception des ruptures dans une carte pan-scalaire.
+                </span>
+                <br><br>
+                <b>Quel est le but de cette expérience ?</b><br><br>
+                La rupture est un changement perçu comme trop brutal et qui provoque parfois de la <b>désorientation</b>.<br>
+                L’objectif de cette expérience est d’analyser la perception et l’intensité de ces ruptures en fonction des personnes, afin de mieux comprendre comment concevoir une carte plus <b>progressive</b>.<br><br>
+            </div>`,
+            `<div id="consent-page-2">
+                <b>Est-ce que je dois y participer ?</b><br>
+                Non, il n’y a aucune obligation. Participer à cette étude repose entièrement sur votre volontariat. Vous pouvez abandonner l’expérience à tout moment, sans avoir à donner de raison.<br><br>
+                <b>Que va-t-il m’arriver si je participe ?</b><br>
+                Durant l’entièreté de l’enquête, vous allez visionner des séries de vidéos cartographiques comprenant diverses ruptures. L’enquête se déroule en deux étapes :<br>
+                <ul style="margin-left:2em;">
+                    <li>Étape 1 : Nous allons vous demander de compter le nombre de ruptures que vous voyez pour chaque vidéo. Il y en a 24 en tout, chacune de 12 secondes environ.</li>
+                    <li>Étape 2 : Vous verrez des vidéos comportant pour chacune une rupture que nous allons vous définir préalablement et vous montrer sur la carte. Vous devrez nous dire leur intensité, à vos yeux.</li>
+                </ul>
+                <b>Durée moyenne :</b> 30 - 45 min<br>
+                <b>Récompense :</b> bloc-notes issu de cartes IGN<br><br>
+                <b>Quels sont les risques pris en participant à l’expérience ?</b><br>
+                Il n’y a aucun risque à participer à cette expérience. Néanmoins, puisque l’étude porte sur les ruptures dans les cartes multi-échelles, vous vivrez des moments de désorientation plus ou moins forts. C’est le seul inconfort que vous pouvez subir.<br><br>
+                <b>Est-ce que ma participation va rester confidentielle ?</b><br>
+                Vos réponses à l’expérience seront complètement anonymisées. Aucune donnée personnelle (nom, adresse mail…) ne vous sera demandée, ni stockée. Les informations vous concernant (âge, genre, expérience avec les cartes…) seront anonymisées pour éviter de servir à vous identifier.<br><br>
+                <b>Que vont devenir mes données ?</b><br>
+                Les données issues de cette expérience ne serviront qu’à but de recherche. Dans le cas de la recherche, cette tâche est considérée d’intérêt public. L’IGN, institution hôte de ces recherches, est contrôleur des données et responsable de votre information et de son utilisation. Vous ne serez pas identifiable dans les futurs rapports et publications scientifiques.<br><br>
+                <div style="text-align:center;margin-top:2vw;">
+                    <button id="btn-participer" class="btn btn-primary" style="font-size:1.05em;padding:0.4em 1.2em;">Je participe</button>
+                </div>
+            </div>`
+        ];
+        let currentPage = 0;
+        function updatePage() {
+            document.getElementById('consent-text').innerHTML = pages[currentPage];
+            document.getElementById('arrow-prev').style.display = currentPage > 0 ? '' : 'none';
+            document.getElementById('arrow-next').style.display = currentPage < pages.length - 1 ? '' : 'none';
+            // Ajout du handler pour le bouton "je participe"
+            if (currentPage === pages.length - 1) {
+                const btn = document.getElementById('btn-participer');
+                if (btn) {
+                    btn.onclick = () => window.location.href = 'etape1.html';
+                }
+            }
+            if (currentPage === 1) {
+                document.getElementById('consent-map').style.display = 'none'; // cache la carte à partir de la page 2
+            } else {
+                document.getElementById('consent-map').style.display = 'block'; // affiche la carte sinon
+            }
+        }
+        document.getElementById('arrow-next').onclick = function() {
+            if (currentPage < pages.length - 1) {
+                currentPage++;
+                updatePage();
+            } else {
+                window.location.href = 'etape1.html';
+            }
+        };
+        document.getElementById('arrow-prev').onclick = function() {
+            if (currentPage > 0) {
+                currentPage--;
+                updatePage();
+            }
+        };
+        updatePage();
+    </script>
+</body>
+</html>

@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Etape 1</title>
+    <link rel="stylesheet" href="/assets/accueil_style.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+        }
+
+        body {
+            min-height: 100vh;
+            background: url('../no_label.png') no-repeat center center fixed;
+            background-size: cover;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .bg-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255,255,255,0.65);
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .video-container {
+            background: rgba(255,255,255,0.92);
+            border-radius: 1rem;
+            box-shadow: 0 0 1rem rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 1550px;
+            margin: 0 auto;
+            padding: 0.5rem;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            position: relative;
+            z-index: 1;
+        }
+
+        .video-wrapper {
+            overflow-x: auto;
+            width: 100%;
+        }
+
+        video {
+            width: 1480px;
+            height: auto;
+            max-width: none;
+            border-radius: 0.5rem;
+            box-shadow: 0 0 0.5rem rgba(0, 0, 0, 0.1);
+            margin-bottom: 0.2rem;
+        }
+
+        .btn-continue {
+            font-size: 1.1rem;
+            padding: 0.5rem 1.5rem;
+            border-radius: 0.5rem;
+            background-color: #4da3ff !important;
+            border-color: #4da3ff !important;
+        }
+
+        .titre-b1 {
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: #333;
+            background: rgba(255,255,255,0.85);
+            padding: 0.5rem rem;
+            border-radius: 0rem;
+            margin-bottom: 0rem;
+            white-space: nowrap;
+        }
+
+        @media (max-width: 900px) {
+            .btn-continue {
+                font-size: 1.2rem;
+                padding: 0.6rem 2rem;
+            }
+            .titre-b1 {
+                font-size: 1.2rem;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .btn-continue {
+                font-size: 1.1rem;
+                padding: 0.8rem 2rem;
+            }
+            .titre-b1 {
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-overlay"></div>
+    <div class="video-container">
+        <div class="video-header-row">
+            <div class="titre-b1"></div>
+        </div>
+        <div class="video-wrapper">
+            <video controls>
+                <source src="" type="video/mp4">
+            </video>
+        </div>
+        <button type="button" class="btn btn-primary btn-continue">Continuer</button>
+    </div>
+
+    <script>
+        // Activation du plein écran (si possible)
+        function requestFullscreen() {
+            const elem = document.documentElement;
+            if (elem.requestFullscreen) {
+                elem.requestFullscreen();
+            } else if (elem.webkitRequestFullscreen) {
+                elem.webkitRequestFullscreen();
+            } else if (elem.msRequestFullscreen) {
+                elem.msRequestFullscreen();
+            }
+        }
+
+        // Appelle le plein écran dès que l'utilisateur interagit
+        document.addEventListener("click", () => {
+            if (!document.fullscreenElement) {
+                requestFullscreen();
+            }
+        }, { once: true });
+
+        // Gestion des vidéos
+        let participantId = parseInt(localStorage.getItem('participant_id_counter')) || 1;
+
+        let introVideos = [
+            {file: "Vidéo_01.mp4", label: "Vidéo 01"},
+            {file: "Vidéo_02.mp4", label: "Vidéo 02"}
+        ];
+        let order = [];
+
+        let videos = [];
+        for (let i = 1; i <= 24; i++) {
+            let num = "A" + i.toString();
+            videos.push({file: `Vidéo_${num}.mp4`, label: `Vidéo ${num}`});
+        }
+
+        let carreLatin = [];
+        fetch('../carre_latin.json')
+            .then(res => res.json())
+            .then(json => {
+                carreLatin = json;
+                let key = "participant_" + participantId;
+                if (carreLatin[key]) {
+                    order = introVideos.concat(carreLatin[key].map(v => {
+                        let num = parseInt(v.replace("videoA", ""));
+                        return videos[num - 1];
+                    }));
+                } else {
+                    order = introVideos.concat(videos);
+                }
+                setVideo(0);
+            });
+
+        function setVideo(step) {
+            const video = document.querySelector('video');
+            const titre = document.querySelector('.titre-b1');
+            const btn = document.querySelector('.btn-continue');
+            if (!video) return;
+            let videoObj = order[step];
+            video.querySelector('source').src = "../videos/" + videoObj.file;
+            video.load();
+            titre.textContent = videoObj.label;
+
+            if (btn) {
+                if (step < order.length - 1) {
+                    btn.style.display = '';
+                    btn.onclick = () => setVideo(step + 1);
+                } else {
+                    btn.style.display = '';
+                    btn.onclick = () => window.location.href = '../etape2.html';
+                }
+            }
+        }
+    </script>
+</body>
+</html>
